@@ -214,26 +214,13 @@ In each case, the input is applied to the input task's parser. Because
 input tasks handle all input after the task name, they usually require
 initial whitespace to be provided in the input.
 
-Consider the example in the previous section. We can modify it so that
-we:
-
--   Explicitly specify all of the arguments to the first `run`. We use
-    `name` and `version` to show that settings can be used to define
-    and modify parsers.
--   Define the initial arguments passed to the second `run`, but allow
-    further input on the command line.
-
-> **Note**: the current implementation of `:=` doesn't actually support
-applying input derived from settings yet.
-
 ```scala
 lazy val run2 = inputKey[Unit]("Runs the main class twice: " +
    "once with the project name and version as arguments"
    "and once with command line arguments preceded by hard coded values.")
 
-// The argument string for the first run task is ' <name> <version>'
-lazy val firstInput: Initialize[String] =
-   Def.setting(s" \${name.value} \${version.value}")
+// Make the complete arguments to the first run task ' yellow orange'
+lazy val firstInput: String = " yellow orange"
 
 // Make the first arguments to the second run task ' red blue'
 lazy val secondInput: String = " red blue"
@@ -249,14 +236,29 @@ For a main class Demo that echoes its arguments, this looks like:
 ```
 \$ sbt
 > run2 green
-[info] Running Demo demo 1.0
+[info] Running Demo yellow orange
 [info] Running Demo red blue green
-demo
-1.0
+yellow
+orange
 red
 blue
 green
 ```
+
+Please note that the current implementation of `:=` does not support
+applying input derived from settings. So the following example **does not 
+work**:
+
+```scala
+lazy val newRun = inputKey[Unit]("Runs the main class with arguments from another task.")
+
+newRun := {
+   // WILL NOT WORK.
+   val result = (run in Compile).fullInput(s" \${name.value} \${version.value}").evaluated
+}
+```
+
+In order to accomplish this, you will need to be able to generate tasks dynamically.
 
 ### Get a Task from an InputTask
 
@@ -322,3 +324,8 @@ red
 orange
 Done!
 ```
+
+So far, this appears to be the same as `fullInput`. But the advantage of 
+using `toTask` is that, [when combined with dynamic tasks][Howto-Dynamic-Input-Task], 
+`toTask` will let you use the output of a setting as preapplied input
+for another `InputTask`.
